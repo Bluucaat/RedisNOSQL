@@ -40,8 +40,6 @@ class Osztaly():
                 return
             
             
-        
-        
         self.r.hmset("h_esemeny_"+megnevezes, {"helyszin:":hsz,
                                                "kezdet:":kezdet,
                                                 "veg:":veg,
@@ -56,8 +54,10 @@ class Osztaly():
                 print(self.r.hgetall("h_esemeny_"+e))
                 
     def esemeny_lista(self):
-        for e in self.r.zrange("z_esemenyek", 0, -1, withscores=False):
-            print(self.r.hgetall("h_esemeny_"+e))
+        for e in self.r.zrange('z_esemenyek', 0,-1,withscores=False):
+            print(self.r.hgetall('h_esemeny_'+e))
+
+
                 
     def uj_jegytipus(self, nev, ar, erv_kezdet, erv_veg):
         if self.r.sismember("s_jegytipusok", nev):
