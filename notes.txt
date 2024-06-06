@@ -1,0 +1,146 @@
+REDIS:
+'''''
+
+indítás:
+''''''''
+vm
+belépés:
+	felhn: student
+	passwd: student	
+ip megváltoztatása:
+	sudo ifconfig enp0s3 ipcím netmask 255.255.255.0
+
+redis bekapcsolása:
+redis-cli
+
+-----------
+
+kikapcsolás:
+''''''''''''
+redis bezárása:
+exit
+
+kikapcsolás:
+sudo shutdown now
+
+____________________________________________________________________________________
+
+ECLIPSE:
+''''''
+
+Új python project:
+''''''''''''''''''
+File -> New -> PyDev project
+
+Projekt név megadása -> Finish
+
+jobb klikk project mappán -> New -> PyDev modul -> Név megadása
+
+alap:
+'''''
+import redis
+class Osztaly():
+    
+    def __init__(self):
+        redis_host='ipcím'
+        redis_port=6379
+        
+        self.r=redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+
+________________________________________________________________________________________________________
+
+ADATBÁZIS FELÉPíTÉSE:
+'''''''''''''''''''''
+
+adattípus választás:
+''''''''''''''''''''
+- felsorolt elemek (nevek, helyszínek, stb)
+	- set -> elemek melyek egyszer szerepelhetnek
+		s_felsoroltelemek
+			elem1, elem2, ...
+
+- felsorolt elemek szám adattal (dátum, pontszám, kezdési idő):
+	- zset -> elemek melyek egyszer szerepelhetnek
+		z_felsoroltelemek
+			elem -> szám adat
+
+- elemek amelyeknek több információ tagja van
+	- hash -> elemek tagjainak tárolása
+		h_többtagúelemek_ - elemmegnevezes
+			tag1
+			tag2
+			.
+			.
+			.
+	- set (v. zset ha van hozzá valami plusz információ, pl.: kezdési idő, pontszám) -> elemek tárolása
+		s_elemek_ (v. z_elemek)
+			elem -> plusz infó
+
+----------------------------------------------------------
+
+SET:
+elemek melyek egyszer szerepelhetnek (és tartozhat hozzá egy adat)
+
+hozzáadás:
+self.r.sadd('setnév', elem)
+
+kiiratás:
+print(self.r.smembers('setnév')):
+
+benne van-e a set-ben:
+if not(self.r.sismember('setnév', mi_van_benne)):
+
+végigmegy mindenen:
+for e in self.r.smembers('setnév'):
+
+érték(ek, ha többedjére megy a hozzárendelés) hozzárendelése set elemhez:
+self.r.sadd('setnév'+elem, érték)
+
+érték megkapása set elemhez:
+self.r.smembers('setnév'+elem)
+
+benne van-e a set-ben az az elem amihez új értéket rendelnénk:
+if self.r.sismember('setnév'+elem, érték):
+
+-------------------------------------
+
+ZSET:
+elemek amelyekhez valamilyen számadat tartozik (pontszám, időpont, ár, stb.)
+
+hozzáadás:
+self.z.zadd('zsetnév', {elem: számadat}):
+
+benne van-e a zset-ben:
+if self.r.zscore('zstenév', mi_van_benne)!=None:
+
+végigmegy a zset elemein:
+for e in self.r.zrange('zsetnév', 0,-1,withscores=False):
+
+végigmegy a zset elemein a számadatokat sorba rendezve:
+for e in self.r.zrangebyscore('zsetnév', 0,-1,withscores=False):
+
+végigmegy a zset elemein a számadatokat fordított sorrendbe rendezve:
+for e in self.r.zrevrange('zsetnév', 0,-1,withscores=False):
+
+zset elemének számadatát növeli n-el:
+self.r.zincrby('zsetnév', elem, n)
+
+zset elemének elérése:
+self.r.zscore('zsetnév'+e)
+
+-------------------------------------
+
+HASH:
+egy elemhez több adat
+
+hozzádás:
+self.r.hmset('hashnév'+elemnév, {'adat1': érték1, 'adat2': érték2, ... 'adatn': értékn})
+
+elem adatának értékének kinyerése:
+self.r.hget('hashnév'+elemnév, 'adat')
+
+egy elem adatának értékének megváltoztatása:
+self.r.hset('hasznév'+elemnév, 'adat', mivel)
+
+kiiratás:
+print(self.r.hgetall('hashnév'+elemnév))
