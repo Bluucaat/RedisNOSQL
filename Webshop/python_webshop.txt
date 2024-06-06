@@ -1,0 +1,179 @@
+OSZTÁLY:
+''''''''
+
+'''
+Created on Apr 10, 2024
+
+@author: student
+'''
+import redis
+import uuid
+from _datetime import datetime
+
+
+class Osztaly():
+    
+    def __init__(self):
+        redis_host='172.22.233.175'
+        redis_port=6379
+        
+        self.r=redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+        
+    def felhasznalo_regisztracio(self, fnev, jelszo, email, nev, szul_dat):
+        if self.r.sismember('s_felhasznalok', email):
+            print('van ilyen email')
+            return
+        if self.r.sismember('s_felhasznalo_nevek',fnev):
+            print('van ilyen felhasznaloi nev')
+            return
+        self.r.hmset('h_felh'+email, {'fnev':nev,
+                                      'jelszo':jelszo,
+                                      'email':email,
+                                      'nev':nev,
+                                      'szul_dat':szul_dat})
+        
+        self.r.sadd('s_felhasznalok',email)
+        self.r.sadd('s_felhasznalo_neve', fnev)
+        
+    def bejelentkezes(self,fnev,jelszo):
+        if (self.r.hget('h_hfelh'+fnev,'jelszo')!=jelszo):
+            print('hibas felhasznalonev vagy jelszo')
+            return
+        tok=str(uuid.uuid4())
+        
+        self.r.hset('h_tokenek',tok, fnev)
+        
+        self.kattint(tok)
+        return(tok)
+    
+    def kattint(self,tok):
+        dt=datetime.now().strftime("%Y%m%d%H%M%S")
+        self.r.zadd('z_aktivitas',{tok,dt})
+    
+    def felhasznalo_torlese(self,fnev):
+        self.r.srem('s_felhasznalo_nevek',fnev)
+        email=self.r.hget('h_felh_'+fnev, 'email')
+        self.r.srem('s_felhasznalok',email)
+        self.r.delete('h_felh_'+fnev)
+        
+    def felhasznalo_torlese_email(self,email):
+        for f in self.r.smembers('s_felhasznalo_nevek'):
+            if email==self.r.hget('h_felh_'+f,'email'):
+                fnev=f
+                self.felhasznalo_torlese(fnev)
+                break
+        
+        
+    def elfelejtett_jelszo(self,fnev):
+        return self.r.hget('h_felh_'+fnev,'jelszo')
+    
+    def felhasznalok_listája(self):
+        for f in self.r.smembers('s:felhasznalo_nevek'):
+            print(self.r.hgetall('h_felh_'+f))
+            
+    def ervenyes_token(self,tok):
+        return self.r.hexists('h_tokenek', tok)
+    
+    def tokenlista(self):
+        for i in self.r.hkeys('h_tokenek'):
+            print(i)
+            
+    def aktivitaks_lista(self,email):
+        for i in self.r.zrange('z_aktivitas', 0, -1, True):
+            print(i)
+            
+    def cikk_lista(self):
+        print(self.r.smembers('s_arucikkek'))
+        
+    def uj_arucikk(self):
+        self.r.sadd('s_arucikkek'.nev)
+        
+    def kosarba_tesz(self, tok, arucikk, db):
+        if not(self.ervenyes_token(tok)):
+            print('nincs ilyen token')
+            return
+        if not(self.r.sismemeber('s_arucikk')):
+            print('nincs ilyen arucikk')
+            return 
+        
+        self.r.hset('h_koösar_'+tok,arucikk,db)
+        self.kattint(tok)
+        
+    def kosarlista(self,tok):
+        print(self.r.hgetall('h_kosar'+tok))
+
+------------------------------------------------------------------------
+
+RUNNER:
+'''''''
+
+'''
+Created on Apr 10, 2024
+
+@author: student
+'''
+from Osztaly import Osztaly
+from neo4j.api import bearer_auth
+
+d=Osztaly()
+
+d.felhasznalo_regisztracio('anna', 'anna', 'a@c', 'av', '2003')
+d.felhasznalo_regisztracio('bela', 'bela', 'b@c', 'bv', '2003')
+d.felhasznalo_regisztracio('cili', 'cili', 'c@c', 'cv', '2003')
+
+d.felhasznalok_listája()
+
+tok1=d.bejelentkezes('anna', 'anna')
+tok2=d.bejelentkezes('anna','anna')
+tok3=d.bejelentkezes('bela','bela')
+tok4=d.bejelentkezes('denes','denes')
+tok5=d.bejelentkezes('bela', 'denes')
+
+d.tokenlista()
+
+print(d.elfelejtett_jelszo('anna'))
+print(d.elfelejtett_jelszo('denes'))
+
+d.felhasznalo_torlese_email('c@c')
+print()
+
+d.felhasznalok_listája
+
+d.bejelentkezes(fnev='anna',jelszo='anna')
+d.bejelentkezes('anna','anna')
+
+d.tokenlista()
+print()
+d.aktivitaks_lista('a@v')
+
+d.kosarba_tesz(tok1,'kenyer', 5)
+d.kosarba_tesz(tok1, 'tej', 3)
+d.kosarlista(tok1)
+
+---------------------------------------------------------------------------
+
+DÉMON:
+''''''
+
+'''
+Created on Apr 10, 2024
+
+@author: student
+'''
+import redis
+from time import sleep
+from _datetime import datetime, timedelta
+
+redis_host='172.22.233.175'
+redis_port=6379
+        
+r=redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+
+while (True):
+    sleep(10)
+    ido=(datetime.now()-timedelta(minutes=1)).strftime("%Y%m%d%H%M%S")
+    for i in r.zremrangebyscore('z_aktivitas',0,max):
+        r.hdel("h_tokenek",i)
+        r.delete('h_kosar'+i)
+    r.zremrangebyscore('z_aktivitas',0,max)
+    
